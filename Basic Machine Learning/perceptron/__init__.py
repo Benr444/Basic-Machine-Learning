@@ -13,12 +13,12 @@ def decide(z_val):
     else:
         return CLASS_B
 
+
+w = np.array([[0.1],[0.3]]) #Weighting for each input, 0 -> 1
 for i in range(0, len(dataset)):
     x = np.array(dataset[i][0:2]).T
-    w = np.array([[0.1],[0.3]]) #Weighting for each input, 0 -> 1
     z = w.T.dot(x) #Culumlation of x and w
     output = decide(z)
-
     for r in range(0, len(w)):
         for c in range(0, len(w[r])):
             d_weight = (learning_rate * (dataset[i][2] - output) * x[c]);
