@@ -1,9 +1,12 @@
 import numpy as np
+import csv
 
 CLASS_A = 1;
 CLASS_B = -1;
 threshold = 1; #See unit_step function definition
 learning_rate = 0.5; #How much weights change for every set, 0 -> 1
+
+
 
 dataset = [[50,30,CLASS_A],[0,0,CLASS_B],[20,40,CLASS_A],[4,3,CLASS_B],[0,0.1,CLASS_B]]
 
