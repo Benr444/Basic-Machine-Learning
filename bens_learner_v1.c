@@ -9,25 +9,137 @@
 
 int LINE_THRESHOLD = 1900; //Values above this on line followers are "on the line"
 int mode = 0;
-int duration = 0.1;
-int nominal_speed = 50;
-int F = 0;
-int R = 1;
-int L = -1;
+float DURATION = 3000; //In milliseconds
+int NOMINAL_SPEED = 50;
+char timeline[5] = {'f','f','f','f','f'};
+int time_i = 0;
+char corrective_code = '_';
 
+void insertMove()
+{
+	int length = (sizeof(timeline))/(sizeof(timeline[0]));
+	int k = sizeof(time_i);
+	char a[time_i]; //First half
+	char b[length - time_i]; //Second half
+	for (int temp = 0; temp < length; temp++)
+	{
+		if (temp <= time_i) //In first half
+		{
+			a[temp] = timeline[temp];
+		}
+		else //In second half
+		{
+			b[temp] = timeline[temp];
+		}
+	}
+	char c[] = {corrective_code};
+	timeline = a + c + b; //Concat the three arrays together, essentially inserting the corrective code ahead of time_i
+}
 
+void reverse(char code) //Reverses an execute move
+{
+	clearTimer(T1);
+	while (time1[T1] < DURATION) //Move/Turn for the constant duration
+	{
+		switch (code)
+		{
+			case 'f': //Forward movement
+				motor[l_Motor] = -NOMINAL_SPEED;
+				motor[r_Motor] = -NOMINAL_SPEED;
+			break;
+			case 'r': //Right turn
+				motor[l_Motor] = -NOMINAL_SPEED;
+				motor[r_Motor] = NOMINAL_SPEED;
+			break;
+			case 'l': //Left turn
+				motor[l_Motor] = NOMINAL_SPEED;
+				motor[r_Motor] = -NOMINAL_SPEED;
+			break;
+		}
+	}
+}
+
+char execute(char code) //Input: direction code to execute, Output: char that represents impact direction correction
+{
+	clearTimer(T1);
+	while (time1[T1] < DURATION) //Move/Turn for the constant duration
+	{
+		switch (code)
+		{
+			case 'f': //Forward movement
+				motor[l_Motor] = NOMINAL_SPEED;
+				motor[r_Motor] = NOMINAL_SPEED;
+			break;
+			case 'r': //Right turn
+				motor[l_Motor] = NOMINAL_SPEED;
+				motor[r_Motor] = -NOMINAL_SPEED;
+			break;
+			case 'l': //Left turn
+				motor[l_Motor] = -NOMINAL_SPEED;
+				motor[r_Motor] = NOMINAL_SPEED;
+			break;
+		}
+		if (SensorValue[l_Sensor] > LINE_THRESHOLD) //Detect collison, assign
+		{
+			motor[l_Motor] = 0;
+			motor[r_Motor] = 0;
+			return 'r'; //Right correction
+		}
+		else if (SensorValue[r_Sensor] > LINE_THRESHOLD) //Detect collison, assign
+		{
+			motor[l_Motor] = 0;
+			motor[r_Motor] = 0;
+			return 'l'; //Left correction
+		}
+	}
+	motor[l_Motor] = 0;
+	motor[r_Motor] = 0;
+	return '_';
+}
 
 task main()
 {
 	while (true)
 	{
+		SensorValue[l_Sensor_LED] = (SensorValue[l_Sensor] > LINE_THRESHOLD);
+		SensorValue[r_Sensor_LED] = (SensorValue[r_Sensor] > LINE_THRESHOLD);
+
+		/*
 		if (SensorValue[l_Sensor] > LINE_THRESHOLD)
 		{SensorValue[l_Sensor_LED] = 1;} else {SensorValue[l_Sensor_LED] = 0;}
 		if (SensorValue[r_Sensor] > LINE_THRESHOLD)
 		{SensorValue[r_Sensor_LED] = 1;} else {SensorValue[r_Sensor_LED] = 0;}
+		*/
 		switch (mode)
 		{
 			case 0:
+				int length = (sizeof(timeline))/(sizeof(timeline[0]));
+				for (time_i = 0; time_i < length; time_i++)
+				{
+					char response = execute(timeline[time_i]); //Execute the move and grab the response
+					switch (response)
+					{
+						case '_':
+							//Do nothing - no correction is needed
+						break;
+
+						case 'r':
+							reverse(timeline[time_i]); //Undo the last move
+							time_i =- 1; //Undo the index
+							corrective_code = 'r'; //Insert the corrective move into the timeline
+							insertMove();
+						break;
+
+						case 'l':
+							reverse(timeline[time_i]); //Undo the last move
+							time_i =- 1; //Undo the index
+							corrective_code = 'l'; //Insert the corrective move into the timeline
+							insertMove();
+						break;
+					}
+				}
+			break;
+			case 1:
 				//----Begin Remote Control
 				if (abs(vexRT[Ch2]) > 12.7) //If the axis is out of the middle deadzone
 				{
@@ -47,9 +159,6 @@ task main()
 					motor[l_Motor] = 0;
 				}
 				//----End Remote Control
-			break;
-			case 1:
-
 			break;
 		}
 
