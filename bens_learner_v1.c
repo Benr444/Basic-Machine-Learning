@@ -11,10 +11,10 @@ int LINE_THRESHOLD = 1900; //Values above this on line followers are "on the lin
 int mode = 0;
 float DURATION = 3000; //In milliseconds
 int NOMINAL_SPEED = 50;
-char timeline[5] = {'f','f','f','f','f'};
+char timeline[20] = {'f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f'};
 int time_i = 0;
-char corrective_code = '_';
 
+/*
 void insertMove()
 {
 	int length = (sizeof(timeline))/(sizeof(timeline[0]));
@@ -35,6 +35,7 @@ void insertMove()
 	char c[] = {corrective_code};
 	timeline = a + c + b; //Concat the three arrays together, essentially inserting the corrective code ahead of time_i
 }
+*/
 
 void reverse(char code) //Reverses an execute move
 {
@@ -117,25 +118,15 @@ task main()
 				for (time_i = 0; time_i < length; time_i++)
 				{
 					char response = execute(timeline[time_i]); //Execute the move and grab the response
-					switch (response)
+					if (response == '_')
 					{
-						case '_':
-							//Do nothing - no correction is needed
-						break;
-
-						case 'r':
-							reverse(timeline[time_i]); //Undo the last move
-							time_i =- 1; //Undo the index
-							corrective_code = 'r'; //Insert the corrective move into the timeline
-							insertMove();
-						break;
-
-						case 'l':
-							reverse(timeline[time_i]); //Undo the last move
-							time_i =- 1; //Undo the index
-							corrective_code = 'l'; //Insert the corrective move into the timeline
-							insertMove();
-						break;
+						//Do nothing
+					}
+					else
+					{
+						reverse(timeline[time_i]); //Undo the last move
+						timeline[time_i] = response; //Insert the corrective move into the timeline
+						time_i =- 1; //Undo the index
 					}
 				}
 			break;
