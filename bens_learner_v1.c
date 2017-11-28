@@ -14,7 +14,9 @@ int NOMINAL_SPEED = 25;
 char timeline[40] = {'f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f','f'};
 int time_i = 0;
 float turn_k = 1.5;
-int inARow = 0;
+int in_a_row = 0;
+int END_CONDITION_COUNT = 7;
+int length = 0;
 
 /*
 void insertMove()
@@ -41,6 +43,7 @@ void insertMove()
 
 void reverse(char code) //Reverses an execute move
 {
+	in_a_row = 0;
 	clearTimer(T1);
 	while (time1[T1] < DURATION) //Move/Turn for the constant duration
 	{
@@ -49,22 +52,29 @@ void reverse(char code) //Reverses an execute move
 			case 'f': //Forward movement
 				motor[l_Motor] = -NOMINAL_SPEED;
 				motor[r_Motor] = -NOMINAL_SPEED;
-				inARow-=1;
-			break;
+				break;
 			case 'r': //Right turn
 				motor[l_Motor] = -NOMINAL_SPEED/turn_k;
 				motor[r_Motor] = NOMINAL_SPEED/turn_k;
-			break;
+				break;
 			case 'l': //Left turn
 				motor[l_Motor] = NOMINAL_SPEED/turn_k;
 				motor[r_Motor] = -NOMINAL_SPEED/turn_k;
-			break;
+				break;
+			case 's': //Stop code
+				motor[l_Motor] = 0;
+				motor[r_Motor] = 0;
+				break;
 		}
 	}
 }
 
 char execute(char code) //Input: direction code to execute, Output: char that represents impact direction correction
 {
+	if(timeline[time_i] == 'f')
+	{
+		in_a_row += 1;
+	}
 	clearTimer(T1);
 	while (time1[T1] < DURATION) //Move/Turn for the constant duration
 	{
@@ -73,17 +83,22 @@ char execute(char code) //Input: direction code to execute, Output: char that re
 			case 'f': //Forward movement
 				motor[l_Motor] = NOMINAL_SPEED;
 				motor[r_Motor] = NOMINAL_SPEED;
-				inARow+=1;
-			break;
+				break;
 			case 'r': //Right turn
 				motor[l_Motor] = NOMINAL_SPEED/turn_k;
 				motor[r_Motor] = -NOMINAL_SPEED/turn_k;
-				inARow = 0;
-			break;
+				in_a_row = 0;
+				break;
 			case 'l': //Left turn
 				motor[l_Motor] = -NOMINAL_SPEED/turn_k;
 				motor[r_Motor] = NOMINAL_SPEED/turn_k;
-				inARow = 0;
+				in_a_row = 0;
+				break;
+			case 's': //Stop code
+				motor[l_Motor] = 0;
+				motor[r_Motor] = 0;
+				in_a_row = 0;
+				return 'E';
 				break;
 		}
 		if (SensorValue[l_Sensor] > LINE_THRESHOLD) //Detect collison, assign
@@ -98,15 +113,52 @@ char execute(char code) //Input: direction code to execute, Output: char that re
 			motor[r_Motor] = 0;
 			return 'l'; //Left correction
 		}
+		else if ((SensorValue[r_Sensor] > LINE_THRESHOLD) &&(SensorValue[l_Sensor] > LINE_THRESHOLD))
+		{
+			motor[l_Motor] = 0;
+			motor[r_Motor] = 0;
+			return 'l';
+		}
 	}
 	motor[l_Motor] = 0;
 	motor[r_Motor] = 0;
 	return '_';
 }
 
+void replay()
+{
+	for(int time_is = 0; time_is < length; time_is++)
+	{
+		clearTimer(T1);
+		while (time1[T1] < DURATION) //Move/Turn for the constant duration
+		{
+			switch(timeline[time_is])
+			{
+				case 'f': //Forward movement
+					motor[l_Motor] = NOMINAL_SPEED;
+					motor[r_Motor] = NOMINAL_SPEED;
+					break;
+				case 'r': //Right turn
+					motor[l_Motor] = NOMINAL_SPEED/turn_k;
+					motor[r_Motor] = -NOMINAL_SPEED/turn_k;
+					break;
+				case 'l': //Left turn
+					motor[l_Motor] = -NOMINAL_SPEED/turn_k;
+					motor[r_Motor] = NOMINAL_SPEED/turn_k;
+					break;
+				case 's': //Stop code
+					motor[l_Motor] = 0;
+					motor[r_Motor] = 0;
+					time_is = length;
+			}
+		}
+
+	}
+}
+
 task main()
 {
-	while (inARow < 10)
+	while (true)
 	{
 		SensorValue[l_Sensor_LED] = (SensorValue[l_Sensor] > LINE_THRESHOLD);
 		SensorValue[r_Sensor_LED] = (SensorValue[r_Sensor] > LINE_THRESHOLD);
@@ -120,19 +172,48 @@ task main()
 		switch (mode)
 		{
 			case 0:
-				int length = (sizeof(timeline))/(sizeof(timeline[0]));
-				for (time_i = 0; time_i < length; time_i++)
+				if (in_a_row < END_CONDITION_COUNT) //If we haven't reached the end of the maze
 				{
-					char response = execute(timeline[time_i]); //Execute the move and grab the response
-					if (response == '_')
+					int length = (sizeof(timeline))/(sizeof(timeline[0]));
+					for (time_i = 0; time_i < length; time_i++)
 					{
-						//Do nothing
-					}
-					else
+						if (in_a_row < END_CONDITION_COUNT)
+						{
+							char response = execute(timeline[time_i]); //Execute the move and grab the response
+							if (response == '_')
+							{
+								//Do nothing
+							}
+							else if (response == 'E')
+							{
+								break; //AAAAAAAAAAAAAAAA WHAT DID YOU DO! CHRIST, THERE'S AN ERROR CODE BEING EXECUTED ON THE TIMELINE!
+								//CRAP, BATTEN DOWN THE REGISTERS! SEAL OFF THE RAM! HOLY HELLS, THIS PROGRAM IS GOING DOWN!
+								//ABORT, ABORT! MAYDAY, DO YOU HEAR ME I/O PORT?! WE NEED ASSISTANCE HERE!
+								//[/end of transmission]
+								//...
+							}
+							else
+							{
+								reverse(timeline[time_i]); //Undo the last move
+								timeline[time_i] = response; //Insert the corrective move into the timeline
+								time_i -= 1; //Undo the index
+							}
+						}
+						else
+						{
+								timeline[time_i] = 's'; //Insert stop code into timeline
+								motor[r_Motor] = 0;
+								motor[l_Motor] = 0;
+								time_i = length;  //Stop the loop
+						}
+					} //End of for loop
+
+				}
+				else //if we HAVE reached the end of the maze
+				{
+					if (SensorValue[bump] == 1) //When the bump button is pressed
 					{
-						reverse(timeline[time_i]); //Undo the last move
-						timeline[time_i] = response; //Insert the corrective move into the timeline
-						time_i -= 1; //Undo the index
+						replay();
 					}
 				}
 			break;
@@ -157,7 +238,7 @@ task main()
 				}
 				//----End Remote Control
 			break;
-		}
 
-	}
-}
+		}
+	} //End of while loop
+} //End of task main
