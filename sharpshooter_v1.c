@@ -28,8 +28,8 @@ float getAngle()
 
 void toAngle(float angle)
 {
-		currentAngle = getAngle;
-		dangle
+		int currentAngle = getAngle();
+
 }
 void setMotors(int power)
 {
